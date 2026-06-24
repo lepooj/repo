@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FieldView — The Intelligence Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b; --surface:#131316; --surface-2:#17171b; --border:#26262b;
+  --border-soft:#1d1d21; --ink:#e4e4e7; --ink-muted:#8a8a93; --ink-dim:#5c5c63;
+  --accent:#a3e635; --win:#34d399; --loss:#f87171; --gold:#fbbf24;
+  --cyan:#22d3ee; --amber:#f59e0b; --violet:#a78bfa; --indigo:#818cf8; --rose:#fb7185; --emerald:#34d399;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --display:"Space Grotesk",system-ui,sans-serif;
+  --body:"Inter",system-ui,sans-serif;
+  --maxw:1120px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  letter-spacing:-0.003em;overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(1200px 700px at 78% -8%, rgba(163,230,53,0.05), transparent 60%),
+    radial-gradient(900px 600px at 0% 100%, rgba(34,211,238,0.025), transparent 55%);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+}
+.wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;padding:0 28px}
+
+/* ---- type & utility ---- */
+.mono{font-family:var(--mono);font-feature-settings:"tnum" 1,"zero" 1}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-dim);display:flex;align-items:center;gap:10px;
+}
+.eyebrow .idx{color:var(--accent)}
+.eyebrow .rule{flex:1;height:1px;background:var(--border-soft);min-width:24px}
+h2.band-title{
+  font-family:var(--display);font-weight:600;letter-spacing:-0.02em;
+  font-size:clamp(26px,3.6vw,40px);line-height:1.08;margin:18px 0 0;color:var(--ink);
+}
+.band-lede{color:var(--ink-muted);font-size:clamp(15px,1.6vw,17px);max-width:62ch;margin:14px 0 0}
+.accent{color:var(--accent)}
+.win{color:var(--win)} .loss{color:var(--loss)} .gold{color:var(--gold)}
+
+/* ---- bands ---- */
+.band{padding:96px 0;position:relative;scroll-margin-top:64px}
+.band + .band{border-top:1px solid var(--border-soft)}
+.band-head{margin-bottom:48px}
+
+/* ---- cards ---- */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+}
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ================= NAV ================= */
+.nav{
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);
+  background:rgba(10,10,11,0.72);border-bottom:1px solid var(--border-soft);
+}
+.nav-inner{max-width:var(--maxw);margin:0 auto;padding:13px 28px;display:flex;align-items:center;gap:18px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;letter-spacing:-0.01em}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:livepulse 2.6s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+.nav-links{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.nav-links a{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--ink-dim);
+  text-decoration:none;padding:6px 10px;border-radius:4px;transition:color .2s,background .2s;
+}
+.nav-links a:hover{color:var(--ink);background:var(--surface-2)}
+.nav-sync{font-family:var(--mono);font-size:11px;color:var(--ink-dim);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.nav-sync .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:livepulse 2.6s ease-in-out infinite}
+
+/* ================= HERO ================= */
+.hero{padding:80px 0 70px;position:relative}
+.hero-grid{display:grid;grid-template-columns:1.32fr .68fr;gap:54px;align-items:center}
+.hero-kicker{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-dim);display:flex;align-items:center;gap:10px;margin-bottom:26px}
+.hero-kicker .tick{width:18px;height:1px;background:var(--accent)}
+.hero h1{
+  font-family:var(--display);font-weight:600;letter-spacing:-0.03em;line-height:1.04;
+  font-size:clamp(34px,5.4vw,60px);margin:0;color:#fafafa;
+}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero-sub{margin:26px 0 0;color:var(--ink-muted);font-size:clamp(16px,1.7vw,19px);max-width:54ch;line-height:1.55}
+.hero-sub b{color:var(--ink);font-weight:500}
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:42px;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--border)}
+.stat{background:var(--surface);padding:18px 18px 16px}
+.stat .v{font-family:var(--mono);font-weight:600;font-size:clamp(22px,2.5vw,28px);color:var(--ink);line-height:1;letter-spacing:-0.01em}
+.stat .v .u{color:var(--accent);font-size:.62em;margin-left:1px}
+.stat .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);margin-top:9px;line-height:1.35}
+
+/* hero cascade */
+.cascade{border:1px solid var(--border);border-radius:8px;background:linear-gradient(180deg,var(--surface),#0e0e10);padding:18px 16px 16px;position:relative}
+.cascade-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.cascade-top .t{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim)}
+.cascade-top .clk{font-family:var(--mono);font-size:10px;color:var(--accent);display:flex;align-items:center;gap:6px}
+.cascade-top .clk .d{width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:livepulse 2.6s infinite}
+.layers{display:flex;flex-direction:column;gap:7px;position:relative}
+.layer{
+  position:relative;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:5px;
+  background:#0d0d0f;border:1px solid var(--border-soft);overflow:hidden;
+}
+.layer .ln{font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);width:14px;flex:none}
+.layer .lt{font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.02em}
+.layer .lbar{position:absolute;inset:0;background:linear-gradient(90deg,rgba(163,230,53,0.14),transparent);opacity:0;transition:opacity .3s}
+.layer.lit .lbar{opacity:1}
+.layer.lit .lt{color:var(--ink)}
+.layer.lit{border-color:rgba(163,230,53,0.35)}
+.packet{position:absolute;left:-2px;width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px 2px var(--accent);top:9px}
+
+/* ================= THESIS ================= */
+.thesis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.tcard{padding:26px 24px 24px;position:relative;overflow:hidden}
+.tcard .tnum{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.12em}
+.tcard h3{font-family:var(--display);font-weight:600;font-size:21px;margin:16px 0 0;letter-spacing:-0.01em}
+.tcard p{color:var(--ink-muted);font-size:14.5px;margin:12px 0 0;line-height:1.62}
+.tcard .pull{display:block;margin-top:16px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);border-top:1px solid var(--border-soft);padding-top:14px}
+.tcard .pull b{color:var(--accent);font-weight:500}
+
+/* ================= PIPELINE (substrate) ================= */
+.pipe-wrap{display:grid;grid-template-columns:1fr .82fr;gap:24px;align-items:start}
+.pipe{display:flex;flex-direction:column;gap:0}
+.pstage{
+  display:grid;grid-template-columns:42px 1fr;gap:0;border:1px solid var(--border);
+  background:var(--surface);border-radius:6px;overflow:hidden;
+}
+.pstage + .pconn{height:18px;width:1px;background:var(--border);margin:0 0 0 21px}
+.pstage .pidx{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;color:var(--ink-dim);background:#0e0e10;border-right:1px solid var(--border)}
+.pstage .pbody{padding:13px 15px}
+.pstage .pname{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pstage .pname .meta{font-weight:400;font-size:10px;letter-spacing:.04em;color:var(--accent);text-transform:none}
+.pstage .pdesc{color:var(--ink-muted);font-size:13px;margin-top:5px;line-height:1.5}
+.pstage.hi{border-color:rgba(163,230,53,0.28)}
+.pstage.hi .pidx{color:var(--accent)}
+
+.matcher{padding:22px 20px}
+.matcher h4{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 4px}
+.matcher .sub{color:var(--ink-muted);font-size:13px;margin:0 0 18px}
+.tier{display:grid;grid-template-columns:auto 1fr;gap:13px;padding:13px 0;border-top:1px solid var(--border-soft)}
+.tier:first-of-type{border-top:none}
+.tier .badge{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;padding:3px 8px;border-radius:4px;height:fit-content;white-space:nowrap}
+.tier .badge.h{color:var(--win);background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25)}
+.tier .badge.m{color:var(--gold);background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.22)}
+.tier .badge.l{color:var(--ink-muted);background:var(--surface-2);border:1px solid var(--border)}
+.tier .td{font-size:13px;color:var(--ink-muted);line-height:1.5}
+.tier .td b{color:var(--ink);font-weight:500;font-family:var(--mono);font-size:12px}
+.discipline{margin-top:18px;border-top:1px solid var(--border-soft);padding-top:16px}
+.discipline .dl{display:flex;gap:10px;font-size:12.5px;color:var(--ink-muted);line-height:1.55;margin-top:11px}
+.discipline .dl:first-child{margin-top:0}
+.discipline .dl .k{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;flex:none;width:96px;padding-top:2px}
+
+/* ================= SIGNAL GRID (breadth) ================= */
+.fam-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:26px}
+.fam-legend .f{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--ink-muted);letter-spacing:.02em}
+.fam-legend .f .sw{width:9px;height:9px;border-radius:2px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tile{perspective:900px;height:130px}
+.tile .inner{position:relative;width:100%;height:100%;transition:transform .55s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d}
+.tile:hover .inner,.tile:focus-within .inner{transform:rotateY(180deg)}
+.tile .face{position:absolute;inset:0;backface-visibility:hidden;border:1px solid var(--border);border-radius:6px;background:var(--surface);padding:13px 13px 11px;display:flex;flex-direction:column}
+.tile .face.back{transform:rotateY(180deg);background:var(--surface-2)}
+.tile .accentbar{height:2px;border-radius:2px;width:26px;margin-bottom:10px}
+.tile .tname{font-family:var(--display);font-weight:600;font-size:13.5px;line-height:1.18;color:var(--ink)}
+.tile .tmeta{font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-top:auto;letter-spacing:.02em}
+.tile .spark{margin-top:8px}
+.tile .back .ftitle{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:7px}
+.tile .back .formula{font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--ink);overflow:hidden}
+.tile .back .writes{margin-top:auto;font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);border-top:1px solid var(--border);padding-top:7px}
+.tile .back .writes b{color:var(--accent);font-weight:500}
+.grid-note{margin-top:18px;font-family:var(--mono);font-size:11.5px;color:var(--ink-dim);display:flex;align-items:center;gap:8px}
+
+/* ================= WIN PROB (depth) ================= */
+.depth-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:24px;align-items:start}
+.contrib-card{padding:24px 24px 20px}
+.contrib-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:16px}
+.contrib-head .ct{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+.dial-wrap{display:flex;align-items:center;gap:18px;margin:6px 0 22px;padding-bottom:20px;border-bottom:1px solid var(--border-soft)}
+.dial-meta .dl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+.dial-meta .dv{font-family:var(--mono);font-weight:600;font-size:13px;color:var(--ink);margin-top:4px}
+.dial-meta .dv span{color:var(--ink-dim)}
+.contrib-axis-label{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.contrib-axis-label .neg{color:var(--loss)}
+.contrib-axis-label .pos{color:var(--win)}
+.crow{display:grid;grid-template-columns:1fr;gap:11px}
+.cbar-row{display:grid;grid-template-columns:138px 1fr 48px;align-items:center;gap:12px;font-family:var(--mono);font-size:11.5px;height:24px}
+.cbar-row .name{text-align:right;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
+.cbar-row.pos .name{color:var(--ink)}
+.cbar-row .track{position:relative;height:100%}
+.cbar-row .axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border)}
+.cbar{position:absolute;top:50%;transform:translateY(-50%) scaleX(0);height:14px;border-radius:2px;transition:transform .9s cubic-bezier(.2,.7,.2,1);box-shadow:0 0 12px -4px currentColor}
+.cbar.in{transform:translateY(-50%) scaleX(1)}
+.cbar.pos{left:50%;transform-origin:left center;color:var(--win);background:linear-gradient(90deg,rgba(52,211,153,.45),var(--win))}
+.cbar.neg{right:50%;transform-origin:right center;color:var(--loss);background:linear-gradient(270deg,rgba(248,113,113,.45),var(--loss))}
+.cval{font-family:var(--mono);font-size:11.5px;font-weight:500;text-align:left}
+.cval.pos{color:var(--win)}
+.cval.neg{color:var(--loss)}
+
+.model-card{padding:22px 22px 18px}
+.model-card h4{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 14px}
+.formula-block{background:#0c0c0e;border:1px solid var(--border);border-radius:6px;padding:15px 16px;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--ink);overflow-x:auto}
+.formula-block .cm{color:var(--ink-dim)}
+.formula-block .kw{color:var(--accent)}
+.featable{width:100%;border-collapse:collapse;margin-top:16px;font-size:11.5px}
+.featable th{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:500}
+.featable td{padding:6px 8px;border-bottom:1px solid var(--border-soft);color:var(--ink-muted);font-family:var(--mono);vertical-align:top}
+.featable td.fn{color:var(--ink)}
+.featable td.imp{color:var(--ink-dim);text-align:right}
+.featable tr:hover td{background:#0e0e10}
+.honesty-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:18px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.honesty-strip .h{background:var(--surface);padding:13px 12px}
+.honesty-strip .hv{font-family:var(--mono);font-weight:600;font-size:18px;color:var(--ink)}
+.honesty-strip .hl{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim);margin-top:5px;line-height:1.4}
+.ledger-note{margin-top:16px;padding:14px 16px;background:#0c0c0e;border:1px solid var(--border);border-radius:6px;font-size:12.5px;color:var(--ink-muted);line-height:1.55}
+.ledger-note b{color:var(--ink);font-weight:500}
+
+/* ================= LOOP ================= */
+.loop-wrap{display:grid;grid-template-columns:.92fr 1.08fr;gap:34px;align-items:center}
+.loop-svg-holder{position:relative}
+.loop-legend{display:flex;flex-direction:column;gap:0}
+.lstep{display:grid;grid-template-columns:34px 1fr;gap:0;border:1px solid var(--border);background:var(--surface);border-radius:6px;overflow:hidden;margin-bottom:9px}
+.lstep .li{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;color:var(--ink-dim);background:#0e0e10;border-right:1px solid var(--border)}
+.lstep .lb{padding:11px 14px}
+.lstep .lt{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink)}
+.lstep .ld{font-size:12.5px;color:var(--ink-muted);margin-top:3px;line-height:1.45}
+.lstep.gate{border-color:var(--accent);box-shadow:0 0 0 1px rgba(163,230,53,0.25),0 0 28px -8px rgba(163,230,53,0.4)}
+.lstep.gate .li{color:var(--accent);background:rgba(163,230,53,0.06)}
+.lstep.gate .lt{color:var(--accent)}
+.loop-consts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:30px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.loop-consts .c{background:var(--surface);padding:14px 14px}
+.loop-consts .cv{font-family:var(--mono);font-weight:600;font-size:17px;color:var(--accent)}
+.loop-consts .cl{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin-top:6px;line-height:1.4}
+
+.mitigated{margin-top:30px;border:1px solid var(--border);border-left:2px solid var(--gold);border-radius:6px;background:var(--surface);padding:20px 22px}
+.mitigated h4{font-family:var(--display);font-weight:600;font-size:16px;margin:0;color:var(--ink)}
+.mitigated h4 code{font-family:var(--mono);font-size:13px;color:var(--gold);background:rgba(251,191,36,0.08);padding:2px 7px;border-radius:4px}
+.mitigated p{color:var(--ink-muted);font-size:13.5px;margin:11px 0 0;line-height:1.6}
+.mitigated .eq{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink);background:#0c0c0e;border:1px solid var(--border);border-radius:5px;padding:9px 12px;display:inline-block}
+
+/* ================= CONSCIENCE ================= */
+.cons-grid{display:grid;grid-template-columns:1fr;gap:24px}
+.timeline-card{padding:24px 24px 22px}
+.timeline-card h4,.reg-card h4,.gov-card h4{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 4px}
+.timeline-card .sub{color:var(--ink-muted);font-size:13px;margin:0 0 22px}
+.timeline{position:relative;display:flex;align-items:center;gap:0;padding:8px 0 6px;overflow-x:auto}
+.timeline .track{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--border)}
+.tnode{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;min-width:42px;cursor:default}
+.tnode .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-dim);border:2px solid var(--bg);transition:transform .2s}
+.tnode.changed .dot{background:var(--accent);box-shadow:0 0 10px var(--accent);width:11px;height:11px;cursor:pointer}
+.tnode.changed:hover .dot{transform:scale(1.25)}
+.tnode .wk{font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);margin-top:9px}
+.tnode .pop{
+  position:absolute;bottom:130%;left:50%;transform:translateX(-50%) translateY(6px);
+  background:#0c0c0e;border:1px solid var(--accent);border-radius:6px;padding:10px 12px;width:188px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:5;
+}
+.tnode.changed:hover .pop{opacity:1;transform:translateX(-50%) translateY(0)}
+.tnode .pop .pk{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.tnode .pop .pe{font-family:var(--mono);font-size:11px;color:var(--ink);margin-top:6px;line-height:1.5}
+.tnode .pop .pe .arr{color:var(--ink-dim)}
+.headline-row{margin-top:24px;display:flex;flex-direction:column;gap:8px}
+.headline-row .hr{font-family:var(--mono);font-size:12px;color:var(--ink-muted);padding:9px 13px;background:#0c0c0e;border:1px solid var(--border-soft);border-radius:5px;display:flex;align-items:center;gap:10px}
+.headline-row .hr .hk{color:var(--accent);font-size:9px;letter-spacing:.1em}
+
+.reg-ledger-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;margin-top:24px;align-items:start}
+.regtable{width:100%;border-collapse:collapse;font-size:11.5px}
+.regtable th{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim);text-align:left;padding:8px 9px;border-bottom:1px solid var(--border);font-weight:500}
+.regtable td{padding:8px 9px;border-bottom:1px solid var(--border-soft);font-family:var(--mono);color:var(--ink-muted)}
+.regtable td.tk{color:var(--ink)}
+.regtable td.dir{font-size:9.5px}
+.regtable .risk-l{color:var(--cyan)} .regtable .risk-h{color:var(--gold)}
+.reg-card{padding:22px 22px 18px}
+.floors{display:flex;flex-direction:column;gap:11px;margin-top:6px}
+.floor{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:baseline}
+.floor .fv{font-family:var(--mono);font-weight:600;font-size:18px;color:var(--accent);width:42px}
+.floor .fl{font-size:12px;color:var(--ink-muted);line-height:1.4}
+.ledger-list{margin-top:20px;border-top:1px solid var(--border-soft);padding-top:16px}
+.ledger-list .lt{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:12px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-family:var(--mono);font-size:10.5px;color:var(--ink-muted);background:#0c0c0e;border:1px solid var(--border);border-radius:4px;padding:5px 9px}
+.chip .ap{color:var(--accent)}
+
+/* ================= GOVERNANCE ================= */
+.gov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start}
+.gov-card{padding:22px 22px 20px;display:flex;flex-direction:column}
+.gov-card .sub{color:var(--ink-muted);font-size:12.5px;margin:0 0 18px;line-height:1.5}
+/* gauge */
+.gauge{display:flex;flex-direction:column;align-items:center;margin:6px 0 4px}
+.gauge .cap{font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-top:12px;letter-spacing:.04em}
+.gauge .cap b{color:var(--ink)}
+.tick-ledger{margin-top:16px;border-top:1px solid var(--border-soft);padding-top:14px}
+.tick-ledger .tl-head{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);display:grid;grid-template-columns:1fr auto auto;gap:8px;padding-bottom:8px}
+.tick-ledger .tl-row{font-family:var(--mono);font-size:10.5px;display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:5px 0;border-top:1px solid var(--border-soft);color:var(--ink-muted);align-items:baseline}
+.tick-ledger .tl-row .lab{color:var(--ink)}
+.tick-ledger .tl-row .ok{color:var(--win)}
+.tick-ledger .tl-row.blocked{color:var(--loss)}
+.tick-ledger .tl-row.blocked .lab{color:var(--loss)}
+/* arbitration ladder */
+.arb{display:flex;flex-direction:column;gap:0;margin-top:4px}
+.arb .comp{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px;padding:7px 10px;border:1px solid var(--border-soft);border-radius:5px;margin-bottom:6px;color:var(--ink-dim);background:#0c0c0e;transition:opacity .3s}
+.arb .comp .n{width:14px;color:var(--ink-dim);flex:none}
+.arb .comp.silenced{opacity:.32}
+.arb .comp.winner{border-color:var(--accent);color:var(--ink);background:rgba(163,230,53,0.05);box-shadow:0 0 18px -6px rgba(163,230,53,0.4)}
+.arb .comp.winner .n{color:var(--accent)}
+.arb-speaker{margin-top:14px;border-top:1px solid var(--border-soft);padding-top:14px}
+.arb-speaker .sl{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.arb-speaker .sq{font-size:13.5px;color:var(--ink);font-family:var(--display);font-weight:500;line-height:1.4}
+.arb-speaker .trace{font-family:var(--mono);font-size:9px;color:var(--ink-dim);margin-top:11px;line-height:1.6}
+.arb-speaker .trace b{color:var(--ink-muted);font-weight:500}
+/* 3 path */
+.paths{display:flex;flex-direction:column;gap:0}
+.ppath{border:1px solid var(--border);border-radius:6px;background:#0c0c0e;padding:12px 13px;position:relative}
+.ppath + .ppath{margin-top:20px}
+.ppath + .ppath::before{content:"fallback ↓";position:absolute;top:-16px;left:13px;font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+.ppath .pp-h{display:flex;align-items:center;gap:8px}
+.ppath .pp-n{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--accent);border:1px solid var(--border);border-radius:3px;padding:2px 5px}
+.ppath .pp-t{font-family:var(--mono);font-size:11px;color:var(--ink);font-weight:600}
+.ppath .pp-d{font-size:11.5px;color:var(--ink-muted);margin-top:7px;line-height:1.5}
+.ppath .pp-d code{font-family:var(--mono);font-size:10px;color:var(--ink);background:var(--surface-2);padding:1px 5px;border-radius:3px}
+.verdicts{margin-top:18px;border-top:1px solid var(--border-soft);padding-top:14px}
+.verdicts .vh{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:10px}
+
+/* ================= EXECUTIVE ================= */
+.exec-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:24px;align-items:start}
+.waterfall-card{padding:24px 24px 18px}
+.waterfall-card h4{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 2px}
+.waterfall-card .sub{color:var(--ink-muted);font-size:13px;margin:0 0 8px}
+.wf-summary{display:flex;gap:22px;margin-top:18px;border-top:1px solid var(--border-soft);padding-top:16px;flex-wrap:wrap}
+.wf-summary .s .v{font-family:var(--mono);font-weight:600;font-size:20px;color:var(--ink)}
+.wf-summary .s .v.acc{color:var(--accent)}
+.wf-summary .s .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim);margin-top:5px}
+.trend-card{padding:22px 22px 16px}
+.trend-card h4{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 2px}
+.trend-card .sub{color:var(--ink-muted);font-size:12.5px;margin:0 0 6px}
+.trend-stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin-top:14px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.trend-stats .ts{background:var(--surface);padding:11px 12px}
+.trend-stats .ts .tl{font-family:var(--mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-dim)}
+.trend-stats .ts .tvr{display:flex;align-items:baseline;gap:7px;margin-top:6px;font-family:var(--mono)}
+.trend-stats .ts .old{font-size:11px;color:var(--ink-dim)}
+.trend-stats .ts .arr{color:var(--ink-dim);font-size:10px}
+.trend-stats .ts .new{font-size:14px;font-weight:600;color:var(--ink)}
+.trend-stats .ts .new.up{color:var(--win)} .trend-stats .ts .new.down{color:var(--win)}
+
+/* trust ladder */
+.ladder-card{padding:24px 24px 20px;margin-top:24px}
+.ladder-card h4{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 4px}
+.ladder-card .sub{color:var(--ink-muted);font-size:13px;margin:0 0 22px;max-width:70ch}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.rung{border:1px solid var(--border);border-radius:6px;background:#0c0c0e;padding:16px 15px;position:relative;display:flex;flex-direction:column}
+.rung .rn{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+.rung .rt{font-family:var(--display);font-weight:600;font-size:17px;margin:7px 0 0;color:var(--ink)}
+.rung .runlock{font-size:11px;color:var(--ink-dim);margin-top:5px;line-height:1.4}
+.rung .gates{margin-top:13px;display:flex;flex-direction:column;gap:8px}
+.rung .g{font-family:var(--mono);font-size:10px;color:var(--ink-muted)}
+.rung .g .meter{height:3px;border-radius:2px;background:var(--border);margin-top:4px;overflow:hidden}
+.rung .g .meter i{display:block;height:100%;background:var(--ink-muted);border-radius:2px}
+.rung.cur{border-color:var(--accent);box-shadow:0 0 0 1px rgba(163,230,53,0.3),0 0 30px -8px rgba(163,230,53,0.45)}
+.rung.cur .rt{color:var(--accent)}
+.rung.cur .g .meter i{background:var(--accent)}
+.rung.cur::after{content:"YOU ARE HERE";position:absolute;top:-9px;right:12px;font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:var(--accent);background:var(--bg);padding:0 6px}
+.rung.next .g.atrisk{color:var(--gold)}
+.rung.next .g.atrisk .meter i{background:var(--gold)}
+.rung.next .decay{margin-top:auto;padding-top:12px;font-family:var(--mono);font-size:9.5px;color:var(--gold);display:flex;align-items:center;gap:6px}
+.rung.next .decay .d{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:livepulse 1.8s infinite}
+.honesty-line{margin-top:22px;border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:6px;background:var(--surface);padding:16px 20px;font-family:var(--display);font-size:15px;color:var(--ink);line-height:1.5;font-style:italic}
+.honesty-line b{color:var(--accent);font-style:normal;font-weight:500}
+
+/* ================= UNDER THE HOOD ================= */
+.hood-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.hrow{border:1px solid var(--border);border-radius:6px;background:var(--surface);padding:17px 18px}
+.hrow .hk{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.hrow .ht{font-size:13px;color:var(--ink-muted);line-height:1.55}
+.hrow .ht b{color:var(--ink);font-weight:500;font-family:var(--mono);font-size:12px}
+.cron-card{grid-column:1/-1;border:1px solid var(--border);border-radius:6px;background:var(--surface);padding:18px 18px}
+.cron-card .hk{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.crons{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.crons .cj{background:var(--surface);padding:11px 12px}
+.crons .cj .when{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent)}
+.crons .cj .what{font-family:var(--mono);font-size:10px;color:var(--ink-muted);margin-top:5px;line-height:1.4}
+.stackline{grid-column:1/-1;font-family:var(--mono);font-size:11.5px;color:var(--ink-dim);line-height:1.7;border-top:1px solid var(--border-soft);padding-top:18px;margin-top:4px}
+.stackline b{color:var(--ink-muted)}
+
+/* ================= FOOTER ================= */
+.footer{padding:80px 0 70px;text-align:center;border-top:1px solid var(--border-soft)}
+.footer .fline{font-family:var(--display);font-weight:600;font-size:clamp(22px,3vw,30px);letter-spacing:-0.02em;color:var(--ink)}
+.footer .fline em{font-style:normal;color:var(--accent)}
+.footer .fsub{font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:18px;letter-spacing:.04em}
+.footer .fpaths{font-family:var(--mono);font-size:11px;color:var(--ink-dim);margin-top:26px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.footer .fpaths code{color:var(--ink-muted)}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width:980px){
+  .hero-grid{grid-template-columns:1fr;gap:38px}
+  .thesis-grid{grid-template-columns:1fr}
+  .pipe-wrap,.depth-grid,.loop-wrap,.exec-grid,.reg-ledger-grid{grid-template-columns:1fr}
+  .gov-grid{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(3,1fr)}
+  .ladder{grid-template-columns:repeat(2,1fr)}
+  .crons{grid-template-columns:repeat(2,1fr)}
+  .hood-grid{grid-template-columns:1fr}
+  .loop-svg-holder{max-width:440px;margin:0 auto}
+}
+@media (max-width:640px){
+  .wrap{padding:0 18px}
+  .band{padding:64px 0}
+  .stat-strip{grid-template-columns:repeat(2,1fr)}
+  .honesty-strip{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .loop-consts{grid-template-columns:1fr}
+  .nav-links{display:none}
+  .featable .hide-sm{display:none}
+  .trend-stats{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .reveal{opacity:1;transform:none}
+  .cbar{transform:translateY(-50%) scaleX(1)!important}
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="dot"></span>FieldView</div>
+    <div class="nav-links">
+      <a href="#thesis">Thesis</a>
+      <a href="#substrate">Substrate</a>
+      <a href="#breadth">Engines</a>
+      <a href="#depth">Model</a>
+      <a href="#loop">Loop</a>
+      <a href="#conscience">Calibration</a>
+      <a href="#governance">Governance</a>
+      <a href="#executive">Forecast</a>
+    </div>
+    <div class="nav-sync"><span class="dot"></span>SYNC · 15m</div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-kicker"><span class="tick"></span>Sales-Engineering Operating System</div>
+        <h1>Captures everything. Predicts technical-win. <em>Tells you when it isn't sure.</em></h1>
+        <p class="hero-sub">A presales OS that auto-captures Salesforce&nbsp;+&nbsp;Calendar activity, runs a layered intelligence pipeline on top of it, predicts technical-win with a <b>self-trained logistic-regression model</b>, and is <b>disciplined enough to render "insufficient sample"</b> instead of a fabricated percentage.</p>
+        <div class="stat-strip" id="statStrip">
+          <div class="stat"><div class="v"><span class="cnum" data-to="84">0</span></div><div class="l">Prisma data models</div></div>
+          <div class="stat"><div class="v"><span class="cnum" data-to="50">0</span><span class="u">+</span></div><div class="l">Intelligence engines</div></div>
+          <div class="stat"><div class="v"><span class="cnum" data-to="12">0</span></div><div class="l">ML model features</div></div>
+          <div class="stat"><div class="v"><span class="cnum" data-to="8">0</span></div><div class="l">Append-only ledgers</div></div>
+        </div>
+      </div>
+      <div class="cascade" aria-hidden="true">
+        <div class="cascade-top">
+          <span class="t">Signal cascade</span>
+          <span class="clk"><span class="d"></span>LIVE</span>
+        </div>
+        <div class="layers" id="cascadeLayers">
+          <div class="layer"><span class="ln">01</span><span class="lt">SYNC ENGINE</span><span class="lbar"></span></div>
+          <div class="layer"><span class="ln">02</span><span class="lt">MATCHING ENGINE</span><span class="lbar"></span></div>
+          <div class="layer"><span class="ln">03</span><span class="lt">DEAL INTELLIGENCE</span><span class="lbar"></span></div>
+          <div class="layer"><span class="ln">04</span><span class="lt">POC / POV TRACKER</span><span class="lbar"></span></div>
+          <div class="layer"><span class="ln">05</span><span class="lt">POV WORKSPACE</span><span class="lbar"></span></div>
+          <div class="layer"><span class="ln">06</span><span class="lt">LEARNING LOOP</span><span class="lbar"></span></div>
+          <div class="layer"><span class="ln">07</span><span class="lt">RITUAL &amp; BRIEFS</span><span class="lbar"></span></div>
+          <div class="layer"><span class="ln">08</span><span class="lt">DASHBOARDS</span><span class="lbar"></span></div>
+          <div class="packet" id="packet"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- THESIS -->
+<section class="band" id="thesis">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§01</span> The thesis<span class="rule"></span></div>
+      <h2 class="band-title">Three commitments that make this hard to build honestly</h2>
+      <p class="band-lede">A normal CRM asks the user. FieldView forbids the question — which forces real inference everywhere, and a conscience to match.</p>
+    </div>
+    <div class="thesis-grid">
+      <div class="tcard card reveal">
+        <div class="tnum">01 — THE MOAT</div>
+        <h3>Zero SE data entry</h3>
+        <p>Required fields are forbidden in the product. Every signal is <em>derived</em> from passively captured activity — there is no "fill in the deal health" form to fall back on. The VP sees value before any sales engineer logs in.</p>
+        <span class="pull">Consequence: <b>real inference</b> wherever a CRM would just ask.</span>
+      </div>
+      <div class="tcard card reveal">
+        <div class="tnum">02 — THE LOOP</div>
+        <h3>The product grades itself</h3>
+        <p>It records every prediction, watches what the operator did, watches what happened to the deal, then <em>retunes its own thresholds weekly</em> based on whether it was right. A closed learning loop, not a static rules engine.</p>
+        <span class="pull">Mechanism: <b>predict → grade → calibrate</b>, on a cron.</span>
+      </div>
+      <div class="tcard card reveal">
+        <div class="tnum">03 — THE CONSCIENCE</div>
+        <h3>It refuses to lie</h3>
+        <p>When data is thin it renders <em>"insufficient sample — N of M outcomes collected"</em> instead of a screenshot-able percentage. Every rollup is gated behind operator confirmation, so the model never trains on its own guesses.</p>
+        <span class="pull">Enforced by <b>append-only ledgers + CI tests</b>.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUBSTRATE -->
+<section class="band" id="substrate">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§02</span> The data substrate<span class="rule"></span></div>
+      <h2 class="band-title">An 8-layer auto-capture pipeline, atomically locked</h2>
+      <p class="band-lede">Every 15 minutes, per org, a single sync pulls Salesforce + Google Calendar and writes a normalized activity graph that everything downstream reads from.</p>
+    </div>
+    <div class="pipe-wrap">
+      <div class="pipe reveal" id="pipe">
+        <div class="pstage"><div class="pidx">01</div><div class="pbody"><div class="pname">Sync Engine <span class="meta">every 15&nbsp;min · atomically locked</span></div><div class="pdesc">Salesforce (Accounts, Opportunities, Events, Tasks) + Google Calendar.</div></div></div>
+        <div class="pconn"></div>
+        <div class="pstage hi"><div class="pidx">02</div><div class="pbody"><div class="pname">Matching Engine <span class="meta">3-tier heuristic →</span></div><div class="pdesc">Stamps <code style="font-family:var(--mono);font-size:11px;color:var(--accent)">Activity.matchConfidence</code> ∈ {HIGH, MEDIUM, LOW, UNMATCHED}.</div></div></div>
+        <div class="pconn"></div>
+        <div class="pstage"><div class="pidx">03</div><div class="pbody"><div class="pname">Deal Intelligence <span class="meta">~60 engines, in sequence</span></div><div class="pdesc">Health, momentum, champion, threading, risk, forecast, dysfunction, loss-chain, behavioral-truth…</div></div></div>
+        <div class="pconn"></div>
+        <div class="pstage"><div class="pidx">04</div><div class="pbody"><div class="pname">POC / POV Tracker</div><div class="pdesc">Auto-detect eval-stage deals, stall scan.</div></div></div>
+        <div class="pconn"></div>
+        <div class="pstage"><div class="pidx">05</div><div class="pbody"><div class="pname">POV Workspace</div><div class="pdesc">Evaluation tree, evidence, validation.</div></div></div>
+        <div class="pconn"></div>
+        <div class="pstage"><div class="pidx">06</div><div class="pbody"><div class="pname">Learning Loop</div><div class="pdesc">predict → expose → act → grade → calibrate.</div></div></div>
+        <div class="pconn"></div>
+        <div class="pstage"><div class="pidx">07</div><div class="pbody"><div class="pname">Ritual &amp; Briefs</div><div class="pdesc">Monday ritual, weekly &amp; Friday briefs.</div></div></div>
+        <div class="pconn"></div>
+        <div class="pstage"><div class="pidx">08</div><div class="pbody"><div class="pname">Dashboards</div><div class="pdesc">Cockpit, leadership, deal room, alerts.</div></div></div>
+      </div>
+
+      <div>
+        <div class="matcher card reveal">
+          <h4>Layer 2 — Matching tiers</h4>
+          <p class="sub">Resolve which deal an activity belongs to, and stamp the confidence honestly.</p>
+          <div class="tier"><span class="badge h">HIGH</span><div class="td"><b>WhatId direct link.</b> Salesforce already told us the relationship.</div></div>
+          <div class="tier"><span class="badge m">MEDIUM</span><div class="td">Attendee email domain → account domain → best deal. <b>Downgrades to LOW</b> if 3+ candidate deals (ambiguous).</div></div>
+          <div class="tier"><span class="badge l">LOW</span><div class="td">Exact deal/account name match (≥5 chars, no substring).</div></div>
+          <div class="discipline">
+            <div class="dl"><span class="k">Atomic lock</span><div><code style="font-family:var(--mono);font-size:11px;color:var(--ink)">updateMany({ syncStatus: IDLE → SYNCING })</code>; if <code style="font-family:var(--mono);font-size:11px;color:var(--ink)">count===0</code> another sync owns the org and the call returns. Stuck syncs &gt;10&nbsp;min auto-recover.</div></div>
+            <div class="dl"><span class="k">Stage isolation</span><div>Stages 5+ are individually <code style="font-family:var(--mono);font-size:11px;color:var(--ink)">try/catch</code> wrapped — a matching failure can't abort scoring or POC detection. CI-guarded, not convention.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BREADTH -->
+<section class="band" id="breadth">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§03</span> The breadth<span class="rule"></span></div>
+      <h2 class="band-title">50+ intelligence engines, each one auditable</h2>
+      <p class="band-lede">Each engine is a mostly-pure function: reads the opportunity + its activity graph, computes a value, writes it back to a column. Hover any tile to see the real algorithm.</p>
+    </div>
+    <div class="fam-legend reveal" id="famLegend"></div>
+    <div class="grid reveal" id="signalGrid"></div>
+    <div class="grid-note reveal"><span class="accent">▸</span> Catalog grouped by 6 engine families · sparklines are illustrative · formulas &amp; written columns are extracted from <span class="mono" style="color:var(--ink-muted)">src/server/lib/</span></div>
+  </div>
+</section>
+
+<!-- DEPTH -->
+<section class="band" id="depth">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§04</span> The depth<span class="rule"></span></div>
+      <h2 class="band-title">A real ML model — explainable, calibrated, self-trained</h2>
+      <p class="band-lede">Pure-TypeScript logistic regression. No external ML library, no black box. Every coefficient and threshold is auditable in <span class="mono" style="color:var(--ink-muted)">win-probability-engine.ts</span>.</p>
+    </div>
+    <div class="depth-grid">
+      <div class="contrib-card card reveal">
+        <div class="contrib-head">
+          <span class="ct">Prediction · explainPrediction()</span>
+          <span class="ct" style="color:var(--ink-muted)">example deal</span>
+        </div>
+        <div class="dial-wrap">
+          <div id="dial"></div>
+          <div class="dial-meta">
+            <div class="dl">P(win) — net sigmoid output</div>
+            <div class="dv">contribution[i] = w[i] × (x_norm[i] − 0.5)</div>
+            <div class="dv" style="margin-top:8px">model accuracy <span style="color:var(--accent)">75%</span> <span>· brier</span> <span style="color:var(--accent)">0.18</span> <span>· n=</span><span style="color:var(--ink)">40</span></div>
+          </div>
+        </div>
+        <div class="contrib-axis-label">
+          <span class="neg">◂ pushing toward LOSS</span>
+          <span class="pos">pushing toward WIN ▸</span>
+        </div>
+        <div class="crow" id="contribChart"></div>
+      </div>
+
+      <div class="model-card card reveal">
+        <h4>The model — logistic regression, L2-regularized</h4>
+        <div class="formula-block">
+<span class="cm">// sigmoid clipped at ±500 to avoid overflow</span>
+sigmoid(x) = 1 / (1 + e<sup>−x</sup>)
+P(win) = sigmoid( <span class="kw">w</span> · x<sub>norm</sub> + <span class="kw">b</span> )
+
+<span class="cm">// batch gradient descent, L2</span>
+η = 0.1   λ = 0.1   maxIter = 500
+w[j] −= η · ( gradW[j]/n + <span class="kw">λ</span>·w[j] )
+        </div>
+        <table class="featable">
+          <thead><tr><th>#</th><th>Feature</th><th class="hide-sm">Meaning</th><th class="imp">impute</th></tr></thead>
+          <tbody id="featBody"></tbody>
+        </table>
+        <div class="honesty-strip">
+          <div class="h"><div class="hv">≥30</div><div class="hl">closed deals to train</div></div>
+          <div class="h"><div class="hv">≥8 / ≥8</div><div class="hl">won / lost floor</div></div>
+          <div class="h"><div class="hv">5-fold</div><div class="hl">cross-validated</div></div>
+          <div class="h"><div class="hv">30d</div><div class="hl">retrain cadence</div></div>
+        </div>
+        <div class="ledger-note">
+          <b>Refuses to train on too little.</b> Cold-start floor is balanced (≥8 won AND ≥8 lost), and a trained model is <b>rejected if it can't beat base-rate accuracy</b>. Every sync writes one immutable <span class="mono" style="color:var(--accent)">WinProbSnapshot</span> per deal per UTC day — probability <em>and</em> the exact feature vector that produced it — so trends reconstruct from honest historical inputs, never recomputed retroactively.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOOP -->
+<section class="band" id="loop">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§05</span> The loop<span class="rule"></span></div>
+      <h2 class="band-title">predict → expose → act → grade → calibrate</h2>
+      <p class="band-lede">The moat. The product doesn't just emit predictions — it closes the loop on every one, and a confirmation gate keeps auto-graded guesses out of the training set.</p>
+    </div>
+    <div class="loop-wrap">
+      <div class="loop-svg-holder reveal" id="loopSvg"></div>
+      <div class="reveal">
+        <div class="loop-legend">
+          <div class="lstep"><div class="li">①</div><div class="lb"><div class="lt">Predict · DecisionJournal</div><div class="ld">Records every prediction with type, value, timestamp, numeric metadata.</div></div></div>
+          <div class="lstep"><div class="li">②</div><div class="lb"><div class="lt">Expose · SignalExposure</div><div class="ld">Logs every render: surface, mode, dwell, shownAt. 30-min dedup.</div></div></div>
+          <div class="lstep"><div class="li">③</div><div class="lb"><div class="lt">Act · CommandOutcome</div><div class="ld">Records the move executed + observedResult (HELPED / NO_CLEAR_EFFECT…).</div></div></div>
+          <div class="lstep"><div class="li">④</div><div class="lb"><div class="lt">Infer</div><div class="ld">Action within 48h, outcome within 10d. Most-recent exposure wins attribution.</div></div></div>
+          <div class="lstep gate"><div class="li">⑤</div><div class="lb"><div class="lt">Confirmation gate</div><div class="ld">An inferred outcome only trains the model if <code style="font-family:var(--mono);font-size:11px;color:var(--accent)">kind === "CONFIRMED"</code>. Guesses are kept, never trained on.</div></div></div>
+          <div class="lstep"><div class="li">⑥</div><div class="lb"><div class="lt">Grade</div><div class="ld">correct / correct_but_mitigated / wrong / partial / not_judgeable.</div></div></div>
+          <div class="lstep"><div class="li">⑦</div><div class="lb"><div class="lt">Calibrate</div><div class="ld">Weekly threshold sweep retunes the engine, logged append-only.</div></div></div>
+        </div>
+        <div class="loop-consts">
+          <div class="c"><div class="cv">48h</div><div class="cl">action window · 2h warm-up</div></div>
+          <div class="c"><div class="cv">10d</div><div class="cl">outcome window</div></div>
+          <div class="c"><div class="cv">500</div><div class="cl">rows / cron pass</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="mitigated reveal">
+      <h4>The clever grade: <code>correct_but_mitigated</code></h4>
+      <p>A pessimistic prediction (AT_RISK, STALLED…) on a deal that then <em>won</em> looks "wrong." But if the operator completed a follow-up inside the mitigation window <em>and</em> the health score rose ≥10 points, the system credits the warning as <span class="gold">correct_but_mitigated</span> — the alarm was right, and acting on it is <em>why</em> the outcome flipped.</p>
+      <span class="eq">accuracy = (correct + correct_but_mitigated) / judgeable</span>
+    </div>
+  </div>
+</section>
+
+<!-- CONSCIENCE -->
+<section class="band" id="conscience">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§06</span> The conscience<span class="rule"></span></div>
+      <h2 class="band-title">Self-calibration, governed and auditable</h2>
+      <p class="band-lede">Once a week the engine sweeps candidate thresholds and adopts the best out-of-sample one — but only inside hard guardrails, and only when it strictly beats the incumbent.</p>
+    </div>
+
+    <div class="timeline-card card reveal">
+      <h4>Calibration timeline — weekly sweep events</h4>
+      <p class="sub">Most weeks hold steady (grey). A lime node is a threshold the engine retuned — hover to see <span class="mono" style="color:var(--ink-muted)">previous → proposed → final (clamped)</span>.</p>
+      <div class="timeline" id="timeline"></div>
+      <div class="headline-row">
+        <div class="hr"><span class="hk">SWEEP</span> 6 thresholds evaluated · 2 changed · 1 clamped.</div>
+        <div class="hr"><span class="hk">SWEEP</span> 6 thresholds evaluated · no material changes.</div>
+        <div class="hr"><span class="hk">SKIP</span> Insufficient resolved outcomes (12) — calibration skipped.</div>
+      </div>
+    </div>
+
+    <div class="reg-ledger-grid">
+      <div class="reg-card card reveal">
+        <h4>Governed threshold registry</h4>
+        <p class="sub" style="color:var(--ink-muted);font-size:13px;margin:0 0 16px">Every threshold is bounded; a sweep can't escape [min, max].</p>
+        <table class="regtable">
+          <thead><tr><th>Threshold</th><th>Def</th><th>Min</th><th>Max</th><th>Floor</th><th>Direction</th></tr></thead>
+          <tbody>
+            <tr><td class="tk">HEALTH_SCORE</td><td>30</td><td>15</td><td>50</td><td>20</td><td class="dir risk-l">score &lt; t ⇒ loss</td></tr>
+            <tr><td class="tk">STALL_ALERT</td><td>14d</td><td>7</td><td>28</td><td>20</td><td class="dir risk-h">score ≥ t ⇒ loss</td></tr>
+            <tr><td class="tk">CHAMPION_GONE</td><td>14d</td><td>7</td><td>28</td><td>15</td><td class="dir risk-h">score ≥ t ⇒ loss</td></tr>
+            <tr><td class="tk">STAGE_STAGNATION</td><td>30d</td><td>14</td><td>60</td><td>15</td><td class="dir risk-h">score ≥ t ⇒ loss</td></tr>
+            <tr><td class="tk">FOLLOW_UP_GAP</td><td>5d</td><td>3</td><td>14</td><td>10</td><td class="dir risk-h">score ≥ t ⇒ loss</td></tr>
+          </tbody>
+        </table>
+        <p class="sub" style="color:var(--ink-dim);font-size:11.5px;margin:14px 0 0;line-height:1.55">Adopt only if <span class="mono">clamped ≠ current</span> <b style="color:var(--ink-muted)">AND</b> <span class="mono">bestAccuracy &gt; currentAccuracy</span> — strict; ties never displace the incumbent. No org-specific threshold publishes below 20 graded deals.</p>
+      </div>
+
+      <div class="reg-card card reveal">
+        <h4>Sample floors — below floor, a cold state (not a number)</h4>
+        <div class="floors">
+          <div class="floor"><span class="fv">40</span><span class="fl">minimum for a published rate (±15pp CI)</span></div>
+          <div class="floor"><span class="fv">96</span><span class="fl">tight rate for hero metrics (±10pp)</span></div>
+          <div class="floor"><span class="fv">150</span><span class="fl">resolved predictions before accuracy claims</span></div>
+          <div class="floor"><span class="fv">80</span><span class="fl">total for a publishable 2×2 confusion matrix (40/class)</span></div>
+        </div>
+        <div class="ledger-list">
+          <div class="lt">Append-only ledgers — never UPDATE / DELETE</div>
+          <div class="chips">
+            <span class="chip"><span class="ap">+</span> ThresholdHistory</span>
+            <span class="chip"><span class="ap">+</span> CalibrationSweepHistory</span>
+            <span class="chip"><span class="ap">+</span> StallAlert</span>
+            <span class="chip"><span class="ap">+</span> StageTransition</span>
+            <span class="chip"><span class="ap">+</span> CloseDateChange</span>
+            <span class="chip"><span class="ap">+</span> ScoreHistory</span>
+            <span class="chip"><span class="ap">+</span> SignalExposure</span>
+            <span class="chip"><span class="ap">+</span> CommandOutcome</span>
+            <span class="chip"><span class="ap">+</span> WinProbSnapshot</span>
+            <span class="chip"><span class="ap">+</span> LLMUsageEvent</span>
+            <span class="chip"><span class="ap">+</span> RealityCheckEvent</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GOVERNANCE -->
+<section class="band" id="governance">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§07</span> The governance layer<span class="rule"></span></div>
+      <h2 class="band-title">Cost breaker · memory arbitration · grounded verification</h2>
+      <p class="band-lede">Three independent governors keep the system cheap, coherent, and honest about what it actually knows.</p>
+    </div>
+    <div class="gov-grid">
+      <!-- budget -->
+      <div class="gov-card card reveal">
+        <h4>LLM cost breaker</h4>
+        <p class="sub">Fail-closed daily budget. Before each metered call, sum today's µUSD vs the org cap — over budget, the call is <span class="loss">refused before spending</span>.</p>
+        <div class="gauge"><div id="gauge"></div><div class="cap">spent <b id="gaugeSpent">182,400</b> / 250,000 µUSD today</div></div>
+        <div class="tick-ledger">
+          <div class="tl-head"><span>model · label</span><span>tok</span><span>µUSD</span></div>
+          <div class="tl-row"><span class="lab">4o-mini · deal-summary</span><span>1,620</span><span>414</span></div>
+          <div class="tl-row"><span class="lab">4o · pov-verification</span><span>3,820</span><span>14,950</span></div>
+          <div class="tl-row"><span class="lab">4o-mini · weekly-narrative</span><span>2,590</span><span>632</span></div>
+          <div class="tl-row blocked"><span class="lab">4o-mini · champion-brief</span><span>—</span><span>BLOCKED</span></div>
+        </div>
+      </div>
+      <!-- arbitration -->
+      <div class="gov-card card reveal">
+        <h4>Conviction engine — one truth per surface</h4>
+        <p class="sub">7 composers each propose one line; a deterministic arbiter speaks exactly one (or stays silent). No two contradictory "truths" on a screen.</p>
+        <div class="arb" id="arbLadder"></div>
+        <div class="arb-speaker">
+          <div class="sl">▸ single speaker</div>
+          <div class="sq">"The deal looks healthy, but no decision-maker is identified."</div>
+          <div class="trace"><b>final_resolution_path:</b> CONTRADICTION · <b>policy:</b> v3 · <b>trust:</b> warming</div>
+        </div>
+      </div>
+      <!-- 3 path -->
+      <div class="gov-card card reveal">
+        <h4>POV claim verification — 3-path grounded</h4>
+        <p class="sub">Tried in order, so the result is never worse than the plainest one.</p>
+        <div class="paths">
+          <div class="ppath"><div class="pp-h"><span class="pp-n">1</span><span class="pp-t">OpenAI web search</span></div><div class="pp-d">Single Responses-API query against current product docs, grounded in cited source URLs.</div></div>
+          <div class="ppath"><div class="pp-h"><span class="pp-n">2</span><span class="pp-t">Bedrock RAG</span></div><div class="pp-d">KB retrieve → rerank <code>cohere.rerank-v3-5</code> → quality gate <code>MIN_USEFUL_SCORE 0.15</code> → grounded synthesis.</div></div>
+          <div class="ppath"><div class="pp-h"><span class="pp-n">3</span><span class="pp-t">OpenAI-direct</span></div><div class="pp-d">Parametric answer, empty sources, stamped <code>MODEL_KNOWLEDGE_NOTICE</code> — never mistaken for grounded.</div></div>
+        </div>
+        <div class="verdicts">
+          <div class="vh">verdict set</div>
+          <div class="chips">
+            <span class="chip" style="color:var(--win)">VERIFIED</span>
+            <span class="chip">PARTIALLY_VERIFIED</span>
+            <span class="chip">NOT_VERIFIED</span>
+            <span class="chip" style="color:var(--loss)">CONTRADICTED</span>
+            <span class="chip">INSUFFICIENT_EVIDENCE</span>
+            <span class="chip" style="color:var(--gold)">NEEDS_HUMAN_REVIEW</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXECUTIVE -->
+<section class="band" id="executive">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§08</span> The executive layer<span class="rule"></span></div>
+      <h2 class="band-title">The forecast-truth waterfall</h2>
+      <p class="band-lede">Raw CRM pipeline, discounted to a number you can actually trust — by gating every dollar on buyer-validated proof.</p>
+    </div>
+    <div class="exec-grid">
+      <div class="waterfall-card card reveal">
+        <h4>Open pipeline → buyer-validated · first-match-wins</h4>
+        <p class="sub">Five disjoint buckets, each subtracting from the remaining dollars.</p>
+        <div id="waterfall"></div>
+        <div class="wf-summary">
+          <div class="s"><div class="v">$9.6M</div><div class="l">raw pipeline</div></div>
+          <div class="s"><div class="v acc">$7.4M</div><div class="l">quality-adjusted · 23% haircut</div></div>
+          <div class="s"><div class="v win">$4.6M</div><div class="l">buyer-validated · BVP 49%</div></div>
+        </div>
+      </div>
+      <div class="trend-card card reveal">
+        <h4>Forecast haircut · 12-week trend</h4>
+        <p class="sub">The discount on raw pipeline is shrinking — the forecast is getting more honest.</p>
+        <div id="haircutTrend"></div>
+        <div class="trend-stats">
+          <div class="ts"><div class="tl">Quality-adjusted</div><div class="tvr"><span class="old">$5.8M</span><span class="arr">→</span><span class="new up">$7.4M</span></div></div>
+          <div class="ts"><div class="tl">Buyer-validated</div><div class="tvr"><span class="old">$1.9M</span><span class="arr">→</span><span class="new up">$4.6M</span></div></div>
+          <div class="ts"><div class="tl">Customer-matched</div><div class="tvr"><span class="old">3</span><span class="arr">→</span><span class="new up">12</span></div></div>
+          <div class="ts"><div class="tl">Deals at risk</div><div class="tvr"><span class="old">$4.5M</span><span class="arr">→</span><span class="new down">$3.0M</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ladder-card card reveal">
+      <h4>The readiness-tier earn-out</h4>
+      <p class="sub">Leadership claims are <em>earned</em>, not asserted. An org climbs a 4-tier ladder, and the strength of language the product is allowed to use scales with it. Even the credibility of the system's self-description decays honestly.</p>
+      <div class="ladder">
+        <div class="rung">
+          <div class="rn">Tier 01</div><div class="rt">Building</div><div class="runlock">observation only</div>
+          <div class="gates"><div class="g">cold start</div></div>
+        </div>
+        <div class="rung">
+          <div class="rn">Tier 02</div><div class="rt">Directional</div><div class="runlock">"directional" numeric hints</div>
+          <div class="gates">
+            <div class="g">closed POVs ≥25 ✓<div class="meter"><i style="width:100%"></i></div></div>
+            <div class="g">graded ≥50 ✓<div class="meter"><i style="width:100%"></i></div></div>
+          </div>
+        </div>
+        <div class="rung cur">
+          <div class="rn">Tier 03</div><div class="rt">Trusted</div><div class="runlock">published accuracy claims</div>
+          <div class="gates">
+            <div class="g">closed POVs · 47 / 40 ✓<div class="meter"><i style="width:100%"></i></div></div>
+            <div class="g">graded · 312 / 150 ✓<div class="meter"><i style="width:100%"></i></div></div>
+            <div class="g">stable · 96 / 90d ✓<div class="meter"><i style="width:100%"></i></div></div>
+          </div>
+        </div>
+        <div class="rung next">
+          <div class="rn">Tier 04</div><div class="rt">Compounding</div><div class="runlock">full moat narrative · +7 hygiene gates</div>
+          <div class="gates">
+            <div class="g">closed POVs · 47 / 100<div class="meter"><i style="width:47%"></i></div></div>
+            <div class="g">graded · 312 / 250 ✓<div class="meter"><i style="width:100%"></i></div></div>
+            <div class="g atrisk">outcome-capture · 78% / 80%<div class="meter"><i style="width:78%"></i></div></div>
+          </div>
+          <div class="decay"><span class="d"></span>14-day grace · 9 days left</div>
+        </div>
+      </div>
+      <div class="honesty-line">"<b>89%</b> of the 4-week-old forecast has landed or is still on track; the quality haircut eased <b>2.1pp to 14%</b> — the discount on raw pipeline is shrinking; prediction trust tier: <b>Trusted</b>."</div>
+    </div>
+  </div>
+</section>
+
+<!-- UNDER THE HOOD -->
+<section class="band" id="hood">
+  <div class="wrap">
+    <div class="band-head reveal">
+      <div class="eyebrow"><span class="idx">§09</span> Under the hood<span class="rule"></span></div>
+      <h2 class="band-title">Engineering rigor, for the skeptics</h2>
+    </div>
+    <div class="hood-grid">
+      <div class="hrow reveal"><div class="hk">Multi-tenancy is absolute</div><div class="ht">All <b>84 models</b> carry <b>orgId</b>; every query filters on it; raw SQL is banned; a static-analysis test grep-walks every server action and <b>fails CI</b> if any query omits orgId.</div></div>
+      <div class="hrow reveal"><div class="hk">Encryption at rest</div><div class="ht">All OAuth tokens (Salesforce, Google, Slack) are <b>AES-256-GCM</b> encrypted; <b>safeDecrypt</b> throws if the key is unset in prod.</div></div>
+      <div class="hrow reveal"><div class="hk">Server actions, not API routes</div><div class="ht">Every mutation calls <b>requireSession / requireAdmin / requireOwner</b>. API routes exist only for OAuth callbacks, cron, share links, uploads, PDF download.</div></div>
+      <div class="hrow reveal"><div class="hk">Hydration discipline</div><div class="ht">No wall-clock/random in client render; every <b>toLocale*</b> pins <b>timeZone:UTC</b> — each backed by a regression test, born from a real production freeze.</div></div>
+      <div class="cron-card reveal">
+        <div class="hk">8 scheduled crons (Vercel)</div>
+        <div class="crons">
+          <div class="cj"><div class="when">every 15m</div><div class="what">sync engine</div></div>
+          <div class="cj"><div class="when">hourly :17</div><div class="what">signal-exposure inference</div></div>
+          <div class="cj"><div class="when">hourly :30</div><div class="what">command-outcome grader</div></div>
+          <div class="cj"><div class="when">hourly :42</div><div class="what">reality-check sweep</div></div>
+          <div class="cj"><div class="when">hourly</div><div class="what">digest</div></div>
+          <div class="cj"><div class="when">14:00 UTC</div><div class="what">Shadow-SE daily brief</div></div>
+          <div class="cj"><div class="when">Fri 13:00</div><div class="what">Friday brief</div></div>
+          <div class="cj"><div class="when">Mon 06:00</div><div class="what">weekly leadership ledger</div></div>
+        </div>
+        <div class="stackline"><b>Stack:</b> Next.js 16 App Router · React 19 · Prisma 7 over Neon Postgres · NextAuth 5 (JWT) · OpenAI SDK + AWS Bedrock · Tailwind v4 · Sentry · Vercel · <b>~530 test files</b>, most of them architecture-enforcing guards.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="fline">Every number on this page is <em>extracted from live code.</em></div>
+    <div class="fsub">Not a CRM skin. A self-calibrating intelligence engine that knows the limits of what it knows.</div>
+    <div class="fpaths">
+      <code>src/server/lib/</code><code>prisma/schema.prisma</code><code>win-probability-engine.ts</code><code>docs/ARCHITECTURE.md</code>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================= DATA */
+const FAMILIES = [
+  {key:'health', name:'Health & scoring', color:'var(--cyan)', raw:'#22d3ee'},
+  {key:'risk',   name:'Risk & forecasting', color:'var(--amber)', raw:'#f59e0b'},
+  {key:'poc',    name:'POC / POV lifecycle', color:'var(--violet)', raw:'#a78bfa'},
+  {key:'behav',  name:'Engagement & behavioral', color:'var(--indigo)', raw:'#818cf8'},
+  {key:'presc',  name:'Prescriptive & signal', color:'var(--rose)', raw:'#fb7185'},
+  {key:'port',   name:'Portfolio & revenue', color:'var(--emerald)', raw:'#34d399'},
+];
+const FC = Object.fromEntries(FAMILIES.map(f=>[f.key,f]));
+
+const ENGINES = [
+  {fam:'health', name:'Scoring Engine V1', meta:'0–100 + momentum', formula:'40% recency · 25% frequency · 20% breadth · 15% velocity → step thresholds; momentum via 4-week rolling ratio', writes:'Opportunity.healthScore'},
+  {fam:'health', name:'Score Family V4.1', meta:'authoritative health', formula:'Equal-weight avg of 3 subscores: Buyer Engagement · Buying Group · Execution. Gap-ranking surfaces worst 3 as reasons', writes:'Opportunity.score'},
+  {fam:'health', name:'Champion Health', meta:'0–100 + trend', formula:'Four 0–25 dims: attendance ratio · meetings/week (4w) · new-stakeholder intros · recency', writes:'Opportunity.championHealth'},
+  {fam:'health', name:'Technical Debt', meta:'quality 0–100 + $ at-risk', formula:'debt = amount × (1 − debtScore/100); four 0–25 dims (SE engagement vs stage, eval progress, threading, recency)', writes:'Opportunity.technicalDebt'},
+  {fam:'health', name:'Committee / Buying Group', meta:'coverage 0–100 + gaps', formula:'Email/name regex → role {TECH/BIZ/SEC/EXEC}; 25 pts per required-role-met for the stage', writes:'BuyingGroup.coverage'},
+  {fam:'health', name:'Dysfunction', meta:'0–100 + named signals', formula:'Independent 15–35pt signals (SPINNING = 5+ activities + 30d no stage change)', writes:'Opportunity.dysfunction'},
+
+  {fam:'risk', name:'Risk Engine', meta:'15+ signal types', formula:'Rule-based; emits calibration metadata (daysSinceChampion, daysInStage, daysSinceLastMeeting) for the weekly sweep', writes:'RiskSignal[]'},
+  {fam:'risk', name:'Forecast Engine', meta:'stage + RED/YEL/GRN', formula:'Deterministic stage map; POV technical-win boosts confidence one notch, technical-loss caps at RED', writes:'Opportunity.forecastConfidence'},
+  {fam:'risk', name:'Pipeline Quality', meta:'index 0–100', formula:'6–7 weighted factors: health dist · momentum mix · threading depth · criteria progress · champion green-rate · +5% POV coverage', writes:'Org.pipelineQuality'},
+  {fam:'risk', name:'Dark Deal Early Warning', meta:'→ zero in 14d', formula:'Score velocity via linear regression on V4.1 history (needs ≥7d); confidence = count of 3 converging signals; suppressed near close', writes:'Opportunity.darkRisk'},
+  {fam:'risk', name:'Zombie Detection', meta:'AGING / ZOMBIE', formula:'Dwell >1.5× = AGING, >2.0× = ZOMBIE of per-stage median; baselines from ≥3 StageTransition rows', writes:'Opportunity.dwellClass'},
+  {fam:'risk', name:'Loss Chain', meta:'6 loss phases', formula:'HEALTHY → ENTHUSIASM_FADE → CHAMPION_DISTRACTION → STAKEHOLDER_WITHDRAWAL → COMMS_BREAKDOWN → GHOST; 28d vs 14d baselines', writes:'Opportunity.lossPhase'},
+  {fam:'risk', name:'Loss Attribution', meta:'primary + factors', formula:'Labeling functions vote with weights across 7 categories; top weighted = primary; grounded in close snapshot', writes:'CloseSnapshot.lossReason'},
+
+  {fam:'poc', name:'POC Detector', meta:'auto-create eval', formula:'Stage-name match {POC, Proof of Concept, Evaluation, Trial, Pilot} → creates POCEvaluation; transitions on close', writes:'POCEvaluation'},
+  {fam:'poc', name:'POC Fitness', meta:'structural 0–100', formula:'5 dims: criteria · stakeholder breadth · exec sponsor · economic buyer · decision linkage', writes:'POCEvaluation.fitness'},
+  {fam:'poc', name:'POC Readiness', meta:'readiness 0–100', formula:'4 dims: champion validated · economic buyer · multi-stakeholder · timeline', writes:'Opportunity.pocReadiness'},
+  {fam:'poc', name:'Stall Engine', meta:'ACTIVE → STALLED', formula:'days-since-activity > threshold (per-org, default 14d, calibrated); emits append-only StallAlert on first transition', writes:'StallAlert'},
+  {fam:'poc', name:'Criteria Volatility', meta:'Stable/Mod/Volatile', formula:'(changeCount / max(currentCount,1)) × 100 → churn band', writes:'POCEvaluation.volatility'},
+
+  {fam:'behav', name:'Engagement Intelligence', meta:'Shannon entropy', formula:'H(X) = −Σ p(x)·log₂ p(x), p(x) = stakeholder share of activity. Low entropy = dangerously concentrated', writes:'Opportunity.entropy'},
+  {fam:'behav', name:'Threading', meta:'depth 0–100', formula:'3 subscores: stakeholder count · avg meetings/stakeholder · recent-active %', writes:'Opportunity.threading'},
+  {fam:'behav', name:'Trajectory', meta:'7d projection', formula:'weeklyΔ = current − previous; projects forward scaled by weeks-to-close', writes:'Opportunity.projectedScore'},
+  {fam:'behav', name:'Commitment Trajectory', meta:'ADV/STABLE/STALL/REV', formula:'Buyer-level transitions with 30-min smoothing on downgrades to prevent oscillation', writes:'Opportunity.commitment'},
+  {fam:'behav', name:'Buyer Signal', meta:'meeting-chain rate', formula:'% of last 5 meetings spawning follow-ups within 10d · consensus momentum · buyer-effort label', writes:'Opportunity.buyerSignal'},
+  {fam:'behav', name:'Buyer Progress', meta:'EXPLORING→CLOSING', formula:'Behavioral commitment level + the gap vs the CRM\'s implied stage', writes:'Opportunity.buyerProgress'},
+  {fam:'behav', name:'Behavioral Truth', meta:'exposure classes', formula:'Offline classify SignalExposure → SEEN_IGNORED / SEEN_ACTED / SEEN_ACTED_OUTCOME / SEEN_REPEATED_THEN_ACTED', writes:'SignalExposure.class'},
+
+  {fam:'presc', name:'Prescription Engine', meta:'action prescriptions', formula:'Risk-signal → action {critical/high/medium} with deadline, rationale, expected impact; POV-aware suppression', writes:'Prescription[]'},
+  {fam:'presc', name:'Unstick Move', meta:'1 highest-leverage line', formula:'Single best sentence for a stuck deal + optional precedent rate from similar closed deals', writes:'Opportunity.unstickMove'},
+  {fam:'presc', name:'Recovery Planner', meta:'what-if ROI', formula:'Perturb a feature to won-deal median, re-run win-prob model, rank actions by ROI = Δprobability / hours', writes:'RecoveryPlan'},
+  {fam:'presc', name:'Assertion Engine', meta:'5 verdicts', formula:'SUPPORTED / WEAKLY_SUPPORTED / NOT_YET_EVIDENCED / WEAKENING / CONTRADICTED', writes:'Assertion[]'},
+  {fam:'presc', name:'Absence Signal', meta:'what\'s missing', formula:'No future meeting · cancelled-no-replacement · no next step — cold-start-suppressed so it never fires on missing data', writes:'AbsenceSignal[]'},
+  {fam:'presc', name:'Conversation Signal', meta:'17 signal types', formula:'From transcripts: security/legal/procurement · competitor named · POC/reference/exec-briefing requested · deadline · hold-until', writes:'ConversationSignal[]'},
+  {fam:'presc', name:'Close-Date Credibility', meta:'STABLE/SLIP/UNREL', formula:'Magnitude · recency · frequency of close-date pushes (≥14d tracking before it speaks)', writes:'Opportunity.closeCredibility'},
+
+  {fam:'port', name:'Revenue Impact', meta:'risk-adjusted $', formula:'atRisk = amount × (1 − health/100), amplified ×1.2 when 3+ risk signals converge', writes:'Opportunity.atRiskAmount'},
+  {fam:'port', name:'Concentration Risk', meta:'entropy-based', formula:'"All eggs in one stakeholder" detection at both pipeline and deal level (Shannon entropy)', writes:'Org.concentrationRisk'},
+];
+
+const CONTRIB = [
+  {label:'Health Score', side:'pos', v:0.32},
+  {label:'Champion Health', side:'pos', v:0.21},
+  {label:'Buying Group', side:'pos', v:0.14},
+  {label:'Indecision', side:'neg', v:0.18},
+  {label:'Evaluation Gap', side:'neg', v:0.11},
+  {label:'Close Date Pushes', side:'neg', v:0.07},
+];
+
+const FEATURES = [
+  ['0','healthScore','Composite deal health','50'],
+  ['1','threadingScore','Stakeholder coverage quality','30'],
+  ['2','championHealthScore','Champion engagement/influence','40'],
+  ['3','committeeScore','Buying-group breadth','30'],
+  ['4','dysfunctionScore','Decision friction / indecision','20'],
+  ['5','technicalDebtScore','Unresolved evaluation gap','30'],
+  ['6','activityCount30d','Meetings + calls (30d)','3'],
+  ['7','meetingCount30d','Meetings only (30d)','2'],
+  ['8','closeDatePushCount','Close-date slippage count','0'],
+  ['9','uniqueStakeholders','Distinct external participants','2'],
+  ['10','stageProgress','Normalized CRM stage position','0.35'],
+  ['11','totalActivities','Lifetime engagement','5'],
+];
+
+/* threshold timeline: 14 weeks, a few "changed" */
+const SWEEPS = [
+  {changed:false},{changed:false},{changed:false},
+  {changed:true,  key:'STALL_ALERT',  prev:'14d', prop:'9d',  fin:'9d'},
+  {changed:false},{changed:false},
+  {changed:true,  key:'HEALTH_SCORE', prev:'30',  prop:'12',  fin:'15'},
+  {changed:false},{changed:false},{changed:false},
+  {changed:true,  key:'FOLLOW_UP_GAP',prev:'5d',  prop:'4d',  fin:'4d'},
+  {changed:false},{changed:false},{changed:false},
+];
+
+const ARB = [
+  {n:'1', t:'Pattern Memory'},
+  {n:'2', t:'Lie Detection (pair collapse)'},
+  {n:'3', t:'Contradiction Memory', win:true},
+  {n:'4', t:'Counter-Evidence Memory'},
+  {n:'5', t:'Proof-Buildup Memory'},
+  {n:'6', t:'Tail: regret → trajectory → move'},
+];
+
+/* ============================================================= HELPERS */
+const $=(s,r=document)=>r.querySelector(s);
+const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+/* ============================================================= FAM LEGEND + GRID */
+(function(){
+  const leg = $('#famLegend');
+  FAMILIES.forEach(f=>{
+    const el=document.createElement('div');el.className='f';
+    el.innerHTML=`<span class="sw" style="background:${f.color}"></span>${f.name}`;
+    leg.appendChild(el);
+  });
+  const grid=$('#signalGrid');
+  ENGINES.forEach((e,i)=>{
+    const c=FC[e.fam];
+    const tile=document.createElement('div');tile.className='tile';tile.tabIndex=0;
+    tile.innerHTML=`
+      <div class="inner">
+        <div class="face front">
+          <div class="accentbar" style="background:${c.color}"></div>
+          <div class="tname">${e.name}</div>
+          <div class="spark">${spark(c.raw,i)}</div>
+          <div class="tmeta">${e.meta}</div>
+        </div>
+        <div class="face back">
+          <div class="ftitle" style="color:${c.color}">Algorithm</div>
+          <div class="formula">${e.formula}</div>
+          <div class="writes">writes <b>${e.writes}</b></div>
+        </div>
+      </div>`;
+    grid.appendChild(tile);
+  });
+})();
+function spark(color,seed){
+  let s=seed*9301+49297; const rnd=()=>{s=(s*9301+49297)%233280;return s/233280;};
+  const n=14,w=92,h=22;let pts=[],y=h*0.5;
+  for(let i=0;i<n;i++){y+=(rnd()-0.45)*6;y=Math.max(3,Math.min(h-3,y));pts.push(`${(i/(n-1)*w).toFixed(1)},${y.toFixed(1)}`);}
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;opacity:.62"><polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+}
+
+/* ============================================================= FEATURE TABLE */
+(function(){
+  const tb=$('#featBody');
+  FEATURES.forEach(f=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${f[0]}</td><td class="fn">${f[1]}</td><td class="hide-sm">${f[2]}</td><td class="imp">${f[3]}</td>`;
+    tb.appendChild(tr);
+  });
+})();
+
+/* ============================================================= DIAL */
+function renderDial(pct){
+  const size=128,cx=64,cy=70,r=52,sw=12;
+  const a0=Math.PI, a1=0; // semicircle top
+  const pol=(ang)=>[cx+r*Math.cos(ang),cy+r*Math.sin(ang)];
+  const arc=(from,to)=>{const[x0,y0]=pol(from),[x1,y1]=pol(to);const large=0;return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`;};
+  const ang=a0+(a1-a0)*(pct/100);
+  const [px,py]=pol(ang);
+  $('#dial').innerHTML=`
+    <svg width="${size}" height="84" viewBox="0 0 ${size} 84">
+      <path d="${arc(a0,a1)}" fill="none" stroke="var(--border)" stroke-width="${sw}" stroke-linecap="round"/>
+      <path id="dialArc" d="${arc(a0,ang)}" fill="none" stroke="var(--accent)" stroke-width="${sw}" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(163,230,53,0.5))"/>
+      <circle cx="${px}" cy="${py}" r="4.5" fill="#0a0a0b" stroke="var(--accent)" stroke-width="2"/>
+      <text x="${cx}" y="58" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="26" fill="#fafafa">${pct}%</text>
+      <text x="${cx}" y="74" text-anchor="middle" font-family="var(--mono)" font-size="9" letter-spacing="1.5" fill="var(--ink-dim)">WIN PROB</text>
+    </svg>`;
+  if(!reduce){
+    const path=$('#dialArc');const len=path.getTotalLength();
+    path.style.strokeDasharray=len;path.style.strokeDashoffset=len;
+    path.getBoundingClientRect();
+    path.style.transition='stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1)';
+    requestAnimationFrame(()=>path.style.strokeDashoffset=0);
+  }
+}
+
+/* ============================================================= CONTRIB CHART */
+function renderContrib(){
+  const wrap=$('#contribChart');const max=0.34;
+  // one contributor per row, sorted by magnitude descending (biggest drivers first)
+  const rows=[...CONTRIB].sort((a,b)=>b.v-a.v);
+  rows.forEach(c=>{
+    const w=(c.v/max*50).toFixed(1); // % of the half-track from the centre axis
+    const row=document.createElement('div');row.className='cbar-row '+c.side;
+    const bar=`<div class="cbar ${c.side}" style="width:${w}%" data-w></div>`;
+    const val=(c.side==='pos'?'+':'−')+c.v.toFixed(2);
+    row.innerHTML=`
+      <div class="name">${c.label}</div>
+      <div class="track"><div class="axis"></div>${bar}</div>
+      <div class="cval ${c.side}">${val}</div>`;
+    wrap.appendChild(row);
+  });
+}
+function animateContrib(){ document.querySelectorAll('#contribChart .cbar').forEach(b=>b.classList.add('in')); }
+
+/* ============================================================= TIMELINE */
+(function(){
+  const tl=$('#timeline');
+  const track=document.createElement('div');track.className='track';tl.appendChild(track);
+  SWEEPS.forEach((s,i)=>{
+    const node=document.createElement('div');node.className='tnode'+(s.changed?' changed':'');
+    node.innerHTML=`<div class="dot"></div><div class="wk">w${i+1}</div>`+
+      (s.changed?`<div class="pop"><div class="pk">${s.key}</div><div class="pe">${s.prev} <span class="arr">→</span> ${s.prop} <span class="arr">(clamped→ ${s.fin})</span></div></div>`:'');
+    tl.appendChild(node);
+  });
+})();
+
+/* ============================================================= GAUGE */
+function renderGauge(pct){
+  const w=180,h=14;
+  $('#gauge').innerHTML=`
+    <svg width="${w}" height="${h+6}" viewBox="0 0 ${w} ${h+6}">
+      <rect x="0" y="3" width="${w}" height="${h}" rx="3" fill="#0c0c0e" stroke="var(--border)"/>
+      <rect id="gfill" x="0" y="3" width="0" height="${h}" rx="3" fill="var(--accent)" style="filter:drop-shadow(0 0 5px rgba(163,230,53,0.4))"/>
+      <line x1="${w}" y1="0" x2="${w}" y2="${h+6}" stroke="var(--loss)" stroke-width="2" stroke-dasharray="2 2"/>
+    </svg>`;
+  const fill=$('#gfill');const target=(pct/100)*w;
+  if(reduce){fill.setAttribute('width',target);return;}
+  let cur=0;const step=()=>{cur+=(target-cur)*0.08;if(target-cur<0.5){fill.setAttribute('width',target);return;}fill.setAttribute('width',cur);requestAnimationFrame(step);};
+  requestAnimationFrame(step);
+}
+
+/* ============================================================= ARBITRATION */
+(function(){
+  const w=$('#arbLadder');
+  ARB.forEach(a=>{
+    const el=document.createElement('div');
+    el.className='comp'+(a.win?' winner':' silenced');
+    el.innerHTML=`<span class="n">${a.n}</span><span>${a.t}</span>`+(a.win?'<span style="margin-left:auto;color:var(--accent)">▸ speaks</span>':'<span style="margin-left:auto">silenced</span>');
+    w.appendChild(el);
+  });
+})();
+
+/* ============================================================= LOOP SVG */
+(function(){
+  const S=420, cx=210, cy=210, R=150;
+  const nodes=[
+    {n:'①',t:'PREDICT'},{n:'②',t:'EXPOSE'},{n:'③',t:'ACT'},{n:'④',t:'INFER'},
+    {n:'⑤',t:'GATE',gate:true},{n:'⑥',t:'GRADE'},{n:'⑦',t:'CALIB'}
+  ];
+  let svg=`<svg viewBox="0 0 ${S} ${S}" width="100%" style="max-width:420px;display:block;margin:0 auto">`;
+  // ring
+  svg+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--border)" stroke-width="1.5"/>`;
+  // motion path (clockwise circle starting top)
+  const pathId='loopPath';
+  svg+=`<path id="${pathId}" d="M ${cx} ${cy-R} A ${R} ${R} 0 1 1 ${cx-0.01} ${cy-R}" fill="none" stroke="none"/>`;
+  // nodes
+  nodes.forEach((nd,i)=>{
+    const ang=-Math.PI/2 + i*(2*Math.PI/nodes.length);
+    const x=cx+R*Math.cos(ang), y=cy+R*Math.sin(ang);
+    const fill=nd.gate?'rgba(163,230,53,0.1)':'var(--surface)';
+    const stroke=nd.gate?'var(--accent)':'var(--border)';
+    const tcol=nd.gate?'var(--accent)':'var(--ink-muted)';
+    svg+=`<g>${nd.gate?`<circle cx="${x}" cy="${y}" r="30" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.3"><animate attributeName="r" values="22;30;22" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0;0.5" dur="2.4s" repeatCount="indefinite"/></circle>`:''}
+      <circle cx="${x}" cy="${y}" r="22" fill="${fill}" stroke="${stroke}" stroke-width="1.5"${nd.gate?' style="filter:drop-shadow(0 0 10px rgba(163,230,53,0.5))"':''}/>
+      <text x="${x}" y="${y-1}" text-anchor="middle" font-size="15" fill="${tcol}" font-family="var(--mono)">${nd.n}</text>
+      <text x="${x}" y="${y+13}" text-anchor="middle" font-size="7.5" letter-spacing="0.5" fill="${nd.gate?'var(--accent)':'var(--ink-dim)'}" font-family="var(--mono)">${nd.t}</text></g>`;
+  });
+  // center label
+  svg+=`<text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="10" letter-spacing="2" fill="var(--ink-dim)" font-family="var(--mono)">CLOSED</text>`;
+  svg+=`<text x="${cx}" y="${cy+10}" text-anchor="middle" font-size="13" letter-spacing="1.5" fill="var(--ink)" font-family="var(--display)" font-weight="600">LEARNING LOOP</text>`;
+  // traveling token, pausing at gate (node 5 = index 4 → 4/7 of the way)
+  if(!reduce){
+    const gateFrac=4/7;
+    svg+=`<circle r="5.5" fill="var(--accent)" style="filter:drop-shadow(0 0 8px var(--accent))">
+      <animateMotion dur="9s" repeatCount="indefinite" rotate="0"
+        keyPoints="0;${(gateFrac-0.005).toFixed(3)};${gateFrac};${gateFrac};1"
+        keyTimes="0;0.42;0.46;0.62;1"
+        calcMode="linear">
+        <mpath href="#${pathId}"/></animateMotion></circle>`;
+  }
+  svg+=`</svg>`;
+  $('#loopSvg').innerHTML=svg;
+})();
+
+/* ============================================================= WATERFALL */
+function renderWaterfall(){
+  // values in $M
+  const steps=[
+    {label:'Raw pipeline', type:'total', val:9.6},
+    {label:'− Without a live POV', type:'drop', val:0.9},
+    {label:'− Stakeholder unmatched (signoff ≠ validator)', type:'drop', val:0.7},
+    {label:'− Internal-only proof (no buyer-facing evidence)', type:'drop', val:0.6},
+    {label:'Thin proof  (buyer-safe, < 2 nodes)', type:'stand', val:2.8},
+    {label:'Buyer-validated  (matched + ≥2 proof nodes)', type:'stand', val:4.6},
+  ];
+  const W=560, rowH=46, padL=8, max=9.6, chartW=W-16;
+  const xScale=v=>v/max*chartW;
+  let running=9.6;
+  let svg=`<svg viewBox="0 0 ${W} ${steps.length*rowH+10}" width="100%" style="display:block">`;
+  steps.forEach((s,i)=>{
+    const y=i*rowH+6;
+    let x0,w,color,floatY;
+    if(s.type==='total'){x0=0;w=xScale(s.val);color='var(--ink-muted)';running=9.6;}
+    else if(s.type==='drop'){ running-=s.val; x0=xScale(running); w=xScale(s.val); color='var(--loss)';}
+    else { // standing bars from 0
+      if(s.label.startsWith('Thin')){x0=0;w=xScale(s.val);color='rgba(163,230,53,0.45)';}
+      else {x0=0;w=xScale(s.val);color='var(--win)';}
+    }
+    const labelColor = s.type==='drop'?'var(--loss)': s.type==='total'?'var(--ink)': (s.label.startsWith('Buyer')?'var(--win)':'var(--accent)');
+    svg+=`<text x="0" y="${y+13}" font-size="11" font-family="var(--mono)" fill="${labelColor}">${s.label}</text>`;
+    svg+=`<rect class="wfbar" x="${x0}" y="${y+20}" width="0" height="16" rx="2" fill="${color}" data-w="${w.toFixed(1)}"/>`;
+    const valLabel = s.type==='drop'?`−$${s.val}M`:`$${s.val}M`;
+    svg+=`<text class="wfval" x="${(x0+w+6)}" y="${y+32}" font-size="10" font-family="var(--mono)" fill="var(--ink-dim)" opacity="0">${valLabel}</text>`;
+    // connector line for drops
+    if(s.type==='drop'){
+      svg+=`<line x1="${xScale(running+s.val)}" y1="${y+28}" x2="${x0+w}" y2="${y+28}" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 2"/>`;
+    }
+  });
+  svg+=`</svg>`;
+  $('#waterfall').innerHTML=svg;
+}
+function animateWaterfall(){
+  document.querySelectorAll('#waterfall .wfbar').forEach((b,i)=>{
+    const w=b.getAttribute('data-w');
+    setTimeout(()=>{
+      b.style.transition='width .7s cubic-bezier(.2,.7,.2,1)';
+      b.setAttribute('width',w);
+      const val=b.parentNode.querySelectorAll('.wfval')[i];
+    },i*120);
+  });
+  document.querySelectorAll('#waterfall .wfval').forEach((t,i)=>{
+    setTimeout(()=>{t.style.transition='opacity .4s';t.setAttribute('opacity','1');},i*120+500);
+  });
+}
+
+/* ============================================================= HAIRCUT TREND */
+function renderTrend(){
+  const W=300,H=90,padL=30,padR=14,padT=12,padB=22;
+  const pts=[{w:0,v:31},{w:12,v:23}];
+  // a few intermediate gridline anchors honest: only 2 real points
+  const x=w=>padL+(w/12)*(W-padL-padR);
+  const y=v=>padT+((35-v)/(35-20))*(H-padT-padB);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+  [35,30,25,20].forEach(g=>{svg+=`<line x1="${padL}" y1="${y(g)}" x2="${W-padR}" y2="${y(g)}" stroke="var(--border-soft)" stroke-width="1"/><text x="${padL-6}" y="${y(g)+3}" text-anchor="end" font-size="8" font-family="var(--mono)" fill="var(--ink-dim)">${g}%</text>`;});
+  const x0=x(0),y0=y(31),x1=x(12),y1=y(23);
+  svg+=`<line class="trendline" x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0}" stroke="var(--accent)" stroke-width="2" style="filter:drop-shadow(0 0 4px rgba(163,230,53,0.5))"/>`;
+  svg+=`<circle cx="${x0}" cy="${y0}" r="3.5" fill="var(--bg)" stroke="var(--accent)" stroke-width="2"/>`;
+  svg+=`<circle class="trenddot" cx="${x1}" cy="${y1}" r="3.5" fill="var(--accent)" stroke="var(--accent)" stroke-width="2" opacity="0"/>`;
+  svg+=`<text x="${x0}" y="${y0-8}" text-anchor="middle" font-size="9" font-family="var(--mono)" fill="var(--loss)">31%</text>`;
+  svg+=`<text x="${x1}" y="${y1-8}" text-anchor="end" font-size="9" font-family="var(--mono)" fill="var(--accent)">23%</text>`;
+  svg+=`<text x="${x0}" y="${H-6}" text-anchor="start" font-size="8" font-family="var(--mono)" fill="var(--ink-dim)">−12 wks</text>`;
+  svg+=`<text x="${x1}" y="${H-6}" text-anchor="end" font-size="8" font-family="var(--mono)" fill="var(--ink-dim)">now</text>`;
+  svg+=`</svg>`;
+  $('#haircutTrend').innerHTML=svg;
+  if(!reduce){
+    const line=$('#haircutTrend .trendline');const dot=$('#haircutTrend .trenddot');
+    setTimeout(()=>{line.style.transition='all 1s cubic-bezier(.2,.7,.2,1)';line.setAttribute('x2',x1);line.setAttribute('y2',y1);},200);
+    setTimeout(()=>{dot.style.transition='opacity .4s';dot.setAttribute('opacity','1');},1100);
+  } else {
+    $('#haircutTrend .trendline').setAttribute('x2',x1);$('#haircutTrend .trendline').setAttribute('y2',y1);
+    $('#haircutTrend .trenddot').setAttribute('opacity','1');
+  }
+}
+
+/* ============================================================= COUNT-UP */
+function countUp(el){
+  const to=+el.dataset.to;if(reduce){el.textContent=to;return;}
+  const dur=1100,t0=performance.now();
+  const tick=(t)=>{const p=Math.min(1,(t-t0)/dur);const e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e);if(p<1)requestAnimationFrame(tick);};
+  requestAnimationFrame(tick);
+}
+
+/* ============================================================= HERO CASCADE */
+(function(){
+  if(reduce){ $('#packet').style.display='none'; document.querySelectorAll('#cascadeLayers .layer').forEach(l=>l.classList.add('lit')); return; }
+  const layers=[...document.querySelectorAll('#cascadeLayers .layer')];
+  const packet=$('#packet');
+  const H=()=>$('#cascadeLayers').getBoundingClientRect().height;
+  function run(){
+    layers.forEach(l=>l.classList.remove('lit'));
+    let i=0;
+    const stepH=()=>{ const r=layers[i].getBoundingClientRect();const pr=$('#cascadeLayers').getBoundingClientRect();return r.top-pr.top+9; };
+    const adv=()=>{
+      if(i>=layers.length){ packet.style.opacity='0'; setTimeout(run,1400); return; }
+      packet.style.opacity='1';
+      packet.style.transition='top .42s cubic-bezier(.4,0,.4,1)';
+      packet.style.top=stepH()+'px';
+      layers[i].classList.add('lit');
+      setTimeout(()=>{ if(i>0) layers[i-1].classList.remove('lit'); i++; adv(); },560);
+    };
+    adv();
+  }
+  setTimeout(run,600);
+})();
+
+/* ============================================================= INIT + OBSERVERS */
+renderContrib(); renderWaterfall(); renderTrend();
+
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// one-shot triggers
+const once=(sel,fn,th=0.3)=>{const t=$(sel);if(!t)return;const o=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){fn();o.disconnect();}})},{threshold:th});o.observe(t);};
+once('#statStrip',()=>document.querySelectorAll('.cnum').forEach(countUp),0.4);
+once('#dial',()=>renderDial(68));
+once('#contribChart',animateContrib,0.25);
+once('#gauge',()=>renderGauge(73));
+once('#waterfall',animateWaterfall,0.25);
+</script>
+</body>
+</html>
